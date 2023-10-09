@@ -1,7 +1,7 @@
 # CLGP
 
-To get utility metrics by CLGP, run `CLGP utility generator.py` with
+To get utility metrics by CLGP, run `CLGP utility generator.py` with the location of the file `url` as
 ```
 '/data_folder/data.txt'
 ```
-Change `url` to the same path as input data.
+The output location is the same as the current folder.
