@@ -1,5 +1,6 @@
 # CLGP
 
-It would be faster with the gpu.
-log file should be deleted before rerun the same file name.
-
+To get utility metrics by CLGP, run `CLGP utility generator.py` with
+```
+'/data_folder/data.txt'
+```
