@@ -17,8 +17,8 @@ source path_to_conda/miniconda3/etc/profile.d/conda.sh
 conda activate tpot
 
 
-folder_name='data'
-model_name='breast_survival_2010-2015_1000samples'
+#folder_name='data'
+#model_name='breast_survival_2010-2015_1000samples'
 file_name1='breast_survival_1000samples'
 echo ${folder_name}
 
