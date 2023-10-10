@@ -94,7 +94,7 @@ for i in {0..999}; do
     do
         [ $Dataset == $file_name ] && echo $NumFeatures
         num_dimensions=$NumFeatures
-    done < /path_to_mc-medgan/data/$folder_name/data_dimentions.csv
+    done < /path_to_mc-medgan/$folder_name/data_dimentions.csv
 
     python multi_categorical_gans/methods/medgan/sampler.py \
         --metadata=/path_to_mc-medgan/$folder_name/$file_name-metadata.json \
