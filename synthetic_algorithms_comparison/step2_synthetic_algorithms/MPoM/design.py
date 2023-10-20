@@ -39,8 +39,6 @@ from abc import ABCMeta, abstractmethod
 
 from utils import performance_metrics, Logger
 
-OUTPUT_FOLDER = '../outputs'
-
 
 class Method(object):
     """
@@ -149,7 +147,7 @@ class Experiment(object):
     on the dataset and produce comparison results for all the tested methods
     in terms of the metrics passed by the user.
     """
-    def __init__(self, name, dataset, methods, metrics, nb_samples=np.inf, nb_gens=1, decodeflag=1):
+    def __init__(self, output_directory, name, dataset, methods, metrics, nb_samples=np.inf, nb_gens=1, decodeflag=1):
 
         # make sure all inputs have expected values and types
         assert isinstance(name, str), "Experiment name should be a string."
@@ -184,18 +182,19 @@ class Experiment(object):
         # number of runs has to be larger then 0
         assert nb_gens > 0, "Number of runs must be > 0."
 
+        self.output_directory = output_directory
         self.name = name
         self.dataset = dataset
         self.methods = methods
         self.metrics = metrics
         self.nb_samples = nb_samples
         self.nb_gens = nb_gens
-	self.decodeflag = decodeflag
+        self.decodeflag = decodeflag
         self.logger = Logger.Logger()
 
     def execute(self):
         # set experiment output directory
-        directory = os.path.join(OUTPUT_FOLDER, self.name)
+        directory = os.path.join(self.output_directory, self.name)
         # if directory already exists, then delete it
         if os.path.exists(directory):
             shutil.rmtree(directory)
@@ -250,51 +249,51 @@ class Experiment(object):
             # generate multiple samples from the data generator
             for run in range(self.nb_gens):
                 self.logger.info('Sampling synthetic dataset ... ')
-		if self.decodeflag == 1:
-                	synth_data = self.dataset.decode_data(method.generate_samples(nb_samples))
-                # save synthetic data to csv file
-                output_fname = os.path.join(method_directory,
-                                        'breast_survival_1000samples_{}-sample.csv'.format(run.__str__()))
-                synth_data.to_csv(output_fname)
+                if self.decodeflag == 1:
+                        synth_data = self.dataset.decode_data(method.generate_samples(nb_samples))
+                        # save synthetic data to csv file
+                        output_fname = os.path.join(method_directory,
+                                                'breast_survival_1000samples_{}-sample.csv'.format(run.__str__()))
+                        synth_data.to_csv(output_fname)
                 else:
-			synth_data = method.generate_samples(nb_samples)
-                # save synthetic data to csv file
-                output_fname = os.path.join(method_directory,
-                                        'breast_survival_1000samples_{}-sample.csv'.format(run.__str__()))
-                self.dataset.decode_data(synth_data).to_csv(output_fname)
-                
+                    synth_data = method.generate_samples(nb_samples)
+                    # save synthetic data to csv file
+                    output_fname = os.path.join(method_directory,
+                                            'breast_survival_1000samples_{}-sample.csv'.format(run.__str__()))
+                    self.dataset.decode_data(synth_data).to_csv(output_fname)
+                        
                 # dict to save performance metrics for the t-th task
                 for met in self.metrics:
                     # metric m for method m in the r-th run
-		    if self.decodeflag == 1:
-                    	m_m_r = metric_func[met](data_a=self.dataset.raw_data, data_b=synth_data)
-		    else:
-                    	m_m_r = metric_func[met](data_a=self.dataset.get_data(), data_b=synth_data)
+                    if self.decodeflag == 1:
+                        m_m_r = metric_func[met](data_a=self.dataset.raw_data, data_b=synth_data)
+                    else:
+                        m_m_r = metric_func[met](data_a=self.dataset.get_data(), data_b=synth_data)
                     results[met].append(m_m_r)
 
-            # save results to file
-            output_fname = os.path.join(method_directory,
-                                        'results_{}.pkl'.format(method.__str__()))
-            with open(output_fname, 'wb') as fh:
-                pickle.dump(results, fh)
-            self.logger.info('Results stored in %s' % (output_fname))
-            
-            result_contents = list()
-            for l in range(len(results['percentage_revealed'])):
-                result_contents.append([method.name, 'percentage_revealed', '-', l+1, 'Single', results['percentage_revealed'][l]])
-            del results['percentage_revealed']
-            # for each metric
-            for k in results.keys():
-                # for each sampled synthetic dataset
-                for i in range(len(results[k])):
-                    # iterate over metrics for k-th sampled dataset
-                    type = 'Multiple' if len(results[k][i].keys()) > 1 else 'Single'
-                    for var in results[k][i].keys():
-                        result_contents.append([method.name, k, var, i+1, type, results[k][i][var]])
+                # save results to file
+                output_fname = os.path.join(method_directory,
+                                            'results_{}.pkl'.format(run.__str__()))
+                with open(output_fname, 'wb') as fh:
+                    pickle.dump(results, fh)
+                self.logger.info('Results stored in %s' % (output_fname))
+                
+                result_contents = list()
+                for l in range(len(results['percentage_revealed'])):
+                    result_contents.append([method.name, 'percentage_revealed', '-', l+1, 'Single', results['percentage_revealed'][l]])
+                del results['percentage_revealed']
+                # for each metric
+                for k in results.keys():
+                    # for each sampled synthetic dataset
+                    for i in range(len(results[k])):
+                        # iterate over metrics for k-th sampled dataset
+                        type = 'Multiple' if len(results[k][i].keys()) > 1 else 'Single'
+                        for var in results[k][i].keys():
+                            result_contents.append([method.name, k, var, i+1, type, results[k][i][var]])
 
-            # store result_contents list into a dataframe for easier manipulation
-            column_names = ['Method', 'Metric', 'Variable', 'Run', 'Type', 'Value']
-            df = pd.DataFrame(result_contents, columns=column_names)
-            df.to_csv(os.path.join(method_directory, 'breast_survival_1000samples_{}-utility_metrics.csv'.format(run.__str__())))
+                # store result_contents list into a dataframe for easier manipulation
+                column_names = ['Method', 'Metric', 'Variable', 'Run', 'Type', 'Value']
+                df = pd.DataFrame(result_contents, columns=column_names)
+                df.to_csv(os.path.join(method_directory, 'breast_survival_1000samples_{}-utility_metrics.csv'.format(run.__str__())))
 
 

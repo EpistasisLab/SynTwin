@@ -33,7 +33,8 @@ metrics = ['kl_divergence',
 
 # create an experiment and execute it
 exp_folder = data_path.split("/")[-1].split(".")[0] + "_" + str(K) + "_" + str(burn_in_steps) + "_" + str(n_gibbs_steps)
-exp = Experiment(exp_folder, dataset, methods,
-                 metrics, nb_gens=1) #nb_gens - number of runs
+out_folder = '/path_to_save/'
+exp = Experiment(out_folder, exp_folder, dataset, methods,
+                 metrics, nb_gens=1)  #nb_gens - number of runs
 exp.execute()
     
