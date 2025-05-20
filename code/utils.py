@@ -75,6 +75,7 @@ def bootstrap_resample_90perc_performance(all_predict, method, datasets, predict
                 cols_to_select = [col for col in all_predict.columns if predict_function in col]
                 cols_to_select.extend(['Real_VitalStatus', 'Real_Node'])
                 df = all_df[cols_to_select]
+                df = df.dropna(subset=[predict_function])
                 sub_df = resample(df, n_samples=n, random_state=seed) 
 
                 num_patient = len(sub_df['Real_Node'])

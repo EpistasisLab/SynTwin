@@ -19,46 +19,49 @@ import math
 from utils import compute_performance, predict_outcome, summarize_ci, plot_ci_all
 from utils import bootstrap_resample_90perc_performance, show_metric_dist
 
-filepath = ''
-data_path = filepath + 'data/'
-output_path = filepath + 'results/vital_prediction_asc/' 
-distance_folder ='results/'
-percolation_folder = 'results/percolation_threshold/'
-method = 'gower'
 
-os.makedirs(output_path, exist_ok=True)
+def outcome_prediction_asc(filepath, threshold=0.5):
+    print("Running step5 outcome prediction with asc community")
+    print(datetime.now())
 
-# Redirect stdout to a file
-log_file = os.path.join(output_path, 'log.txt')
-sys.stdout = open(log_file, 'w')  
+    filepath = filepath +'/'
+    data_path = filepath + 'data/'
+    output_path = filepath + 'results/vital_prediction_asc/' 
+    distance_folder ='results/'
+    percolation_folder = 'results/percolation_threshold/'
+    method = 'gower'
 
-threshold = 0.5 # Change this value to set the threshold for the distance matrix
-resolution = 100 # Change this value to set the resolution for the distance matrix
-random_state = 46 # Set the best random state calculated from the previous step
+    os.makedirs(output_path, exist_ok=True)
 
-id_col = 'IID'
-predict_col = 'outcome'
+    # Redirect stdout to a file
+    log_file = os.path.join(output_path, 'log.txt')
+    sys.stdout = open(log_file, 'w')  
 
-real_le = pd.read_csv(data_path+'GS_gwas/gene_scores_test_gwas.csv') 
-real_data = real_le.copy()
-real_le = real_le.drop(columns= predict_col) 
+    #threshold = 0.5 # Change this value to set the threshold for the distance matrix
+    random_state = 46 # Set the best random state calculated from the previous step
 
-synth_filename = 'synth_GC.csv'  # synth_CTGAN or synth_GC or synth_TVAE
-synth_le = pd.read_csv(data_path+ 'data/'+synth_filename)  
-synthetic_data = synth_le.rename(columns={'Unnamed: 0': id_col}) # Modify this line if the column name is different
-synth_ids = synthetic_data[id_col]
-synth_le = synth_le.drop(columns = ['Unnamed: 0',predict_col]) # Modify this line if the column name is different
-synth_le_pt = pd.read_csv(data_path+ 'data/'+synth_filename)           
+    id_col = 'IID'
+    predict_col = 'outcome'
 
-datasets  = ['real','synth','synth_topn','real+synth','real+synth_topn','real_OC']
-predict_functions = ['mean','mode', 'knn'] 
-metric_list = ['Accuracy', 'BalancedAccuracy', 'AUROC', 'Precision', 'Recall', 'F1']
+    real_le = pd.read_csv(filepath+'GS_gwas/gene_scores_test_gwas.csv') 
+    real_data = real_le.copy()
+    real_le = real_le.drop(columns= predict_col) 
 
-cat_features = [False] * 87
+    synth_filename = 'synth_GC.csv'  # synth_CTGAN or synth_GC or synth_TVAE
+    synth_le = pd.read_csv(data_path+synth_filename)  
+    synthetic_data = synth_le.copy() # Modify this line if the column name is different
+    synth_ids = synthetic_data[id_col]
+    synth_le = synth_le.drop(columns = [id_col, predict_col]) # Modify this line if the column name is different      
 
-def main():    
+    datasets  = ['real','synth','synth_topn','real+synth','real+synth_topn','real_OC']
+    predict_functions = ['mean','mode', 'knn'] 
+    metric_list = ['Accuracy', 'BalancedAccuracy', 'AUROC', 'Precision', 'Recall', 'F1']
+
+    cat_features = [False] * 87
+
+
     random.seed(random_state)
-    network = pd.read_csv(percolation_folder,'cytoscape_'+method+str(threshold)+'.csv') 
+    network = pd.read_csv(filepath+ percolation_folder+'cytoscape_'+method+'_'+str(threshold)+'.csv') 
     network.loc[:,'Obj1'] = network.loc[:,'Obj1'].astype(str)
     network.loc[:,'Obj2'] = network.loc[:,'Obj2'].astype(str)
 
@@ -170,7 +173,7 @@ def main():
         community_id = i+1
         
         # calculate the distance between center and synthetic patients 
-        center = real_le[real_le['IID']==int(community_centers[i])].drop(columns=['IID'])  
+        center = real_le[real_le['IID']==community_centers[i]].drop(columns=['IID'])  
         random.seed(random_state)
         synth_temp = pd.DataFrame(cdist_gower(center, synth_le.iloc[:,0:], cat_features = cat_features), columns=synth_ids)
 
@@ -188,43 +191,50 @@ def main():
             real_label = real_data.loc[real_data['IID'].isin(a_id), 'outcome']
             real_feature = real_data[real_data['IID'].isin(a_id)].drop(columns={'IID', 'outcome'}).values
 
-            count_a, std_a, dead_a, ratio_a, pred_label_mean_a, pred_label_mode_a, pred_label_knn_a, true_label = predict_outcome(real_label, real_feature, real_node, id_col, predict_col)        
+            count_a, std_a, dead_a, ratio_a, pred_label_mean_a, pred_label_mode_a, pred_label_knn_a, true_label = predict_outcome(real_data, real_label, real_feature, real_node, id_col, predict_col)        
             predic_function_a.append([community_id, real_node, method, 'real', count_a, std_a, dead_a, ratio_a, pred_label_mean_a, pred_label_mode_a, pred_label_knn_a, true_label])
 
-            #b  (digital twins)
-            b_id = synth_community_members
-            synth_label = synthetic_data.loc[synthetic_data['IID'].isin(b_id), 'outcome']
-            synth_feature = synthetic_data[synthetic_data['IID'].isin(b_id)].drop(columns={'IID', 'outcome'}).values
+            if len(synth_community_members)>0:
+                #b  (digital twins)
+                b_id = synth_community_members
+                synth_label = synthetic_data.loc[synthetic_data['IID'].isin(b_id), 'outcome']
+                synth_feature = synthetic_data[synthetic_data['IID'].isin(b_id)].drop(columns={'IID', 'outcome'}).values
 
-            count_b, std_b, dead_b, ratio_b, pred_label_mean_b, pred_label_mode_b, pred_label_knn_b, true_label = predict_outcome(synth_label, synth_feature, real_node, id_col, predict_col)                
-            predic_function_b.append([community_id, real_node, method, 'synth', count_b, std_b, dead_b, ratio_b, pred_label_mean_b, pred_label_mode_b, pred_label_knn_b, true_label])
+                count_b, std_b, dead_b, ratio_b, pred_label_mean_b, pred_label_mode_b, pred_label_knn_b, true_label = predict_outcome(real_data, synth_label, synth_feature, real_node, id_col, predict_col)                
+                predic_function_b.append([community_id, real_node, method, 'synth', count_b, std_b, dead_b, ratio_b, pred_label_mean_b, pred_label_mode_b, pred_label_knn_b, true_label])
 
-            #b top n (the closest digital twins )
-            real_node_le = real_le[real_le['IID']==int(real_node)].drop(columns=['IID'])  
-            synth_community_members_le = synth_le_pt[synth_le_pt['Unnamed: 0'].isin(synth_community_members)].drop(columns={'Unnamed: 0', 'outcome'})
-            random.seed(random_state)
-            synth_to_real_node = pd.DataFrame(cdist_gower(real_node_le, synth_community_members_le, cat_features = cat_features), columns=synth_community_members)
-            
-            btopn_id = synth_to_real_node.loc[0].nsmallest(n=len(a_id), keep='all').index.tolist()
-            synthn_label = synthetic_data.loc[synthetic_data['IID'].isin(btopn_id), 'outcome']
-            synthn_feature = synthetic_data[synthetic_data['IID'].isin(btopn_id)].drop(columns={'IID', 'outcome'}).values
+                #b top n (the closest digital twins )
+                real_node_le = real_le[real_le['IID']==int(real_node)].drop(columns=['IID'])  
+                synth_community_members_le = synth_le_pt[synth_le_pt['Unnamed: 0'].isin(synth_community_members)].drop(columns={'Unnamed: 0', 'outcome'})
+                random.seed(random_state)
+                synth_to_real_node = pd.DataFrame(cdist_gower(real_node_le, synth_community_members_le, cat_features = cat_features), columns=synth_community_members)
+                
+                btopn_id = synth_to_real_node.loc[0].nsmallest(n=len(a_id), keep='all').index.tolist()
+                synthn_label = synthetic_data.loc[synthetic_data['IID'].isin(btopn_id), 'outcome']
+                synthn_feature = synthetic_data[synthetic_data['IID'].isin(btopn_id)].drop(columns={'IID', 'outcome'}).values
 
-            count_bn, std_bn, dead_bn, ratio_bn, pred_label_mean_bn, pred_label_mode_bn, pred_label_knn_bn, true_label = predict_outcome(synthn_label, synthn_feature, real_node, id_col, predict_col)                
-            predic_function_bn.append([community_id, real_node, method, 'synth_topn', count_bn, std_bn, dead_bn, ratio_bn, pred_label_mean_bn, pred_label_mode_bn, pred_label_knn_bn, true_label])
-            
-            #c (real patients and digital twins)
-            all_label = pd.concat([real_label, synth_label]) #np.concatenate((real_label.values, synth_label.values), axis=0)
-            all_feature = np.concatenate((real_feature, synth_feature), axis=0)
+                count_bn, std_bn, dead_bn, ratio_bn, pred_label_mean_bn, pred_label_mode_bn, pred_label_knn_bn, true_label = predict_outcome(real_data, synthn_label, synthn_feature, real_node, id_col, predict_col)                
+                predic_function_bn.append([community_id, real_node, method, 'synth_topn', count_bn, std_bn, dead_bn, ratio_bn, pred_label_mean_bn, pred_label_mode_bn, pred_label_knn_bn, true_label])
+                
+                #c (real patients and digital twins)
+                all_label = pd.concat([real_label, synth_label]) #np.concatenate((real_label.values, synth_label.values), axis=0)
+                all_feature = np.concatenate((real_feature, synth_feature), axis=0)
 
-            count_c, std_c, dead_c, ratio_c, pred_label_mean_c, pred_label_mode_c, pred_label_knn_c, true_label = predict_outcome(all_label, all_feature, real_node, id_col, predict_col)                
-            predic_function_c.append([community_id, real_node, method, 'real+synth', count_c, std_c, dead_c, ratio_c, pred_label_mean_c, pred_label_mode_c, pred_label_knn_c, true_label])
+                count_c, std_c, dead_c, ratio_c, pred_label_mean_c, pred_label_mode_c, pred_label_knn_c, true_label = predict_outcome(real_data, all_label, all_feature, real_node, id_col, predict_col)                
+                predic_function_c.append([community_id, real_node, method, 'real+synth', count_c, std_c, dead_c, ratio_c, pred_label_mean_c, pred_label_mode_c, pred_label_knn_c, true_label])
 
-            #c top n (real patients and closest digital twins)
-            alln_label = pd.concat([real_label, synthn_label]) 
-            alln_feature = np.concatenate((real_feature, synthn_feature), axis=0)
+                #c top n (real patients and closest digital twins)
+                alln_label = pd.concat([real_label, synthn_label]) 
+                alln_feature = np.concatenate((real_feature, synthn_feature), axis=0)
 
-            count_cn, std_cn, dead_cn, ratio_cn, pred_label_mean_cn, pred_label_mode_cn, pred_label_knn_cn, true_label = predict_outcome(alln_label, alln_feature, real_node, id_col, predict_col)                
-            predic_function_cn.append([community_id, real_node, method, 'real+synth_topn', count_cn, std_cn, dead_cn, ratio_cn, pred_label_mean_cn, pred_label_mode_cn, pred_label_knn_cn, true_label])
+                count_cn, std_cn, dead_cn, ratio_cn, pred_label_mean_cn, pred_label_mode_cn, pred_label_knn_cn, true_label = predict_outcome(real_data, alln_label, alln_feature, real_node, id_col, predict_col)                
+                predic_function_cn.append([community_id, real_node, method, 'real+synth_topn', count_cn, std_cn, dead_cn, ratio_cn, pred_label_mean_cn, pred_label_mode_cn, pred_label_knn_cn, true_label])
+
+            else:
+                predic_function_b.append([community_id, real_node, method, 'synth', 0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, true_label])
+                predic_function_bn.append([community_id, real_node, method, 'synth_topn', 0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, true_label])
+                predic_function_c.append([community_id, real_node, method, 'real+synth', count_a, std_a, dead_a, ratio_a, pred_label_mean_a, pred_label_mode_a, pred_label_knn_a, true_label])
+                predic_function_cn.append([community_id, real_node, method, 'real+synth_topn', count_a, std_a, dead_a, ratio_a, pred_label_mean_a, pred_label_mode_a, pred_label_knn_a, true_label])
 
             #d (real patients outside the community)
             real_id = real_data['IID']
@@ -234,14 +244,14 @@ def main():
             outer_label = real_data.loc[real_data['IID'].isin(d_id), 'outcome']
             outer_feature = real_data[real_data['IID'].isin(d_id)].drop(columns={'IID', 'outcome'}).values
 
-            count_d, std_d, dead_d, ratio_d, pred_label_mean_d, pred_label_mode_d, pred_label_knn_d, true_label = predict_outcome(outer_label, outer_feature, real_node, id_col, predict_col)                
+            count_d, std_d, dead_d, ratio_d, pred_label_mean_d, pred_label_mode_d, pred_label_knn_d, true_label = predict_outcome(real_data, outer_label, outer_feature, real_node, id_col, predict_col)                
             predic_function_d.append([community_id, real_node, method, 'real_OC', count_d, std_d, dead_d, ratio_d, pred_label_mean_d, pred_label_mode_d, pred_label_knn_d, true_label])
 
-    cols =['CommunityId', 'Method', 'Dataset', 'PredictionFunction', 'Precision', 'Recall', 'Accuracy', 'BalancedAccuracy','F1', 'AUROC', 'CM']
-    community_performances_df = pd.DataFrame(performances, columns=cols)
-    community_performances_df.to_csv(output_path+method+'_community_performances.csv', index=False)
+    #cols =['CommunityId', 'Method', 'Dataset', 'PredictionFunction', 'Precision', 'Recall', 'Accuracy', 'BalancedAccuracy','F1', 'AUROC', 'CM']
+    #community_performances_df = pd.DataFrame(performances, columns=cols)
+    #community_performances_df.to_csv(output_path+method+'_community_performances.csv', index=False)
 
-    cols =['CommunityId', 'Real_Node', 'Method', 'Dataset', 'count', 'std', 'dead', 'ratio','mean', 'mode', 'Real_VitalStatus']
+    cols =['CommunityId', 'Real_Node', 'Method', 'Dataset', 'count', 'std', 'dead', 'ratio','mean', 'mode', 'knn', 'Real_VitalStatus']
     predic_function_a_df= pd.DataFrame(predic_function_a, columns=cols)
     predic_function_b_df= pd.DataFrame(predic_function_b, columns=cols)
     predic_function_bn_df= pd.DataFrame(predic_function_bn, columns=cols)
@@ -250,7 +260,7 @@ def main():
     predic_function_d_df= pd.DataFrame(predic_function_d, columns=cols)
 
     all_predict= pd.concat([predic_function_a_df, predic_function_b_df, predic_function_bn_df, predic_function_c_df, predic_function_cn_df, predic_function_d_df])
-    all_predict= all_predict.set_index(['Real_Node','Method','Dataset'])
+    #all_predict= all_predict.set_index(['Real_Node','Method','Dataset'])
     all_predict.to_csv(output_path+method+'_all_predict.csv')
 
 
@@ -262,6 +272,7 @@ def main():
             cols_to_select = [col for col in all_predict.columns if predict_function in col]
             cols_to_select.append('Real_VitalStatus')
             df = all_df[cols_to_select]
+            df = df.dropna(subset=[predict_function])
 
             y_true = df['Real_VitalStatus']
             y_pred = df[predict_function]
@@ -277,19 +288,17 @@ def main():
 
     # Calculate overall performance for 90% bootstrap
     performances_df = bootstrap_resample_90perc_performance(all_predict, method, datasets, predict_functions, output_path)
-    ci_df = summarize_ci(performances_df, '90perc')
-    plot_ci_all(ci_df, '90perc')
+    ci_df = summarize_ci(performances_df, '90perc', method, datasets, predict_functions, metric_list, output_path)
+    plot_ci_all(ci_df, '90perc', method, datasets, predict_functions, metric_list, output_path)
 
     # Show sample distribution of performance metrics
     for dataset in datasets:
         for predict_function in predict_functions:
-            show_metric_dist(performances_df, method, predict_function, dataset)
+            show_metric_dist(performances_df, method, predict_function, dataset, output_path)
 
-print(datetime.now())
+    print(datetime.now())
 
-main(method)
+    sys.stdout.close()
+    sys.stdout = sys.__stdout__
 
-print(datetime.now())
-
-sys.stdout.close()
-sys.stdout = sys.__stdout__
+    print("step5 outcome prediction with asc community completed")

@@ -1,0 +1,16 @@
+from step1_synthetic_algorithm import step1_synthetic_algorithm
+from step2_calculate_distance import step2_calculate_distance
+from step3_percolation_threshold import step3_percolation_threshold 
+from step4a_asc_community import asc_community_creation
+from step4b_multilevel_community import multilevel_community_creation 
+from step5a_vital_prediction_asc import outcome_prediction_asc
+from step5b_vital_prediction_multilevel import outcome_prediction_multilevel
+
+filepath = ''
+
+step1_synthetic_algorithm(filepath)
+step2_calculate_distance(filepath)
+threshold = step3_percolation_threshold(filepath)
+resolution, random_state= multilevel_community_creation(filepath) #asc_community_creation(filepath)
+outcome_prediction_multilevel(filepath, threshold, resolution, random_state)
+

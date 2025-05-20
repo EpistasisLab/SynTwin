@@ -1,0 +1,4 @@
+#main packages:
+sdv
+matplotlib
+igraph
