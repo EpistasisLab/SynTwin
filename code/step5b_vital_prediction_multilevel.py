@@ -32,10 +32,6 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     log_file = os.path.join(output_path, 'log.txt')
     sys.stdout = open(log_file, 'w')  
 
-    #threshold = 0.5 # Change this value to set the threshold for the distance matrix
-    #resolution = 100 # Change this value to set the resolution for the distance matrix
-    #random_state = 46 # Set the best random state calculated from the previous step
-
     id_col = 'IID'
     predict_col = 'outcome'
 
@@ -54,7 +50,22 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     predict_functions = ['mean','mode', 'knn'] 
     metric_list = ['Accuracy', 'BalancedAccuracy', 'AUROC', 'Precision', 'Recall', 'F1']
 
-    cat_features = [False] * 87
+    num_cols = real_le.shape[1]
+    cat_features = [False] * num_cols
+    num_max = np.ones(num_cols)
+    num_ranges = np.zeros(num_cols)
+    for idx, col_name in enumerate(real_le.columns):
+        col_array = real_le[col_name].astype(np.float32).values
+        max_val = np.nanmax(col_array)
+        min_val = np.nanmin(col_array)
+
+        if np.isnan(max_val):
+            max_val = 0.0
+        if np.isnan(min_val):
+            min_val = 0.0
+
+        num_max[idx] = max_val
+        num_ranges[idx] = np.abs(1 - min_val / max_val) if max_val != 0 else 0.0        
 
     random.seed(random_state)
     network = pd.read_csv(filepath+ percolation_folder+'cytoscape_'+method+'_'+str(threshold)+'.csv') 
@@ -141,7 +152,6 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     predic_function_c =[]   
     predic_function_cn =[]
     predic_function_d =[]
-    performances=[]
 
     for i in range(n_communities_10):
         
@@ -150,7 +160,7 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
         # calculate the distance between center and synthetic patients 
         center = real_le[real_le['IID']==community_centers[i]].drop(columns=['IID'])  
         random.seed(random_state)
-        synth_temp = pd.DataFrame(cdist_gower(center, synth_le.iloc[:,0:], cat_features = cat_features), columns=synth_ids)
+        synth_temp = pd.DataFrame(cdist_gower(center, synth_le.iloc[:,0:], cat_features = cat_features, num_max=num_max, num_ranges=num_ranges), columns=synth_ids)
 
         # filter synthetic patients to those within the community (distance to center less than max distance )
         synth_community_members = synth_temp.columns[synth_temp.iloc[0].lt(community_distances[i])].tolist()
@@ -182,7 +192,7 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
                 real_node_le = real_le[real_le['IID']==real_node].drop(columns=['IID'])  
                 synth_community_members_le = synthetic_data[synthetic_data['IID'].isin(synth_community_members)].drop(columns={'IID', 'outcome'})
                 random.seed(random_state)
-                synth_to_real_node = pd.DataFrame(cdist_gower(real_node_le, synth_community_members_le, cat_features = cat_features), columns=synth_community_members)
+                synth_to_real_node = pd.DataFrame(cdist_gower(real_node_le, synth_community_members_le, cat_features = cat_features, num_max=num_max, num_ranges=num_ranges), columns=synth_community_members)
                 
                 btopn_id = synth_to_real_node.loc[0].nsmallest(n=len(a_id), keep='all').index.tolist()
                 synthn_label = synthetic_data.loc[synthetic_data['IID'].isin(btopn_id), 'outcome']
