@@ -19,7 +19,6 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     print("Running step5 outcome prediction with multilevel community")
     print(datetime.now())
 
-    filepath = filepath +'/'
     data_path = filepath + 'data/'
     output_path = filepath + 'results/vital_prediction_multilevel/' 
     distance_folder ='results/'
