@@ -35,14 +35,14 @@ def outcome_prediction_asc(filepath, threshold=0.5):
 
     # Redirect stdout to a file
     log_file = os.path.join(output_path, 'log.txt')
-    sys.stdout = open(log_file, 'w')  
+    sys.stdout = open(log_file, 'w')
 
     random_state = 46 # Set the best random state calculated from the previous step
 
     id_col = 'IID'
     predict_col = 'outcome'
 
-    real_le = pd.read_csv(filepath+'GS_gwas/gene_scores_test_gwas.csv') 
+    real_le = pd.read_csv(filepath+'syntwin_gs/gene_scores_test_alzkb.csv') 
     real_data = real_le.copy()
     real_le = real_le.drop(columns= predict_col) 
 
@@ -56,12 +56,14 @@ def outcome_prediction_asc(filepath, threshold=0.5):
     predict_functions = ['mean','mode', 'knn'] 
     metric_list = ['Accuracy', 'BalancedAccuracy', 'AUROC', 'Precision', 'Recall', 'F1']
 
-    num_cols = real_le.shape[1]
+    # Keep num features only
+    features = real_le.drop(columns=[id_col])
+    num_cols = features.shape[1]
     cat_features = [False] * num_cols
     num_max = np.ones(num_cols)
     num_ranges = np.zeros(num_cols)
-    for idx, col_name in enumerate(real_le.columns):
-        col_array = real_le[col_name].astype(np.float32).values
+    for idx, col_name in enumerate(features.columns):
+        col_array = features[col_name].astype(np.float32).values
         max_val = np.nanmax(col_array)
         min_val = np.nanmin(col_array)
 
@@ -143,6 +145,13 @@ def outcome_prediction_asc(filepath, threshold=0.5):
         if len(members) >= 10:
             random.seed(random_state)
             subgraph = G.subgraph(members)
+            
+            # check connected-component
+            if not nx.is_connected(subgraph):
+                components = list(nx.connected_components(subgraph))
+                largest = max(components, key=len)
+                subgraph = subgraph.subgraph(largest).copy()
+            
             centrality = nx.eigenvector_centrality_numpy(subgraph, weight='Weights') 
             community_center = max(centrality, key=centrality.get)
             community_centers.append(community_center)
@@ -152,7 +161,7 @@ def outcome_prediction_asc(filepath, threshold=0.5):
             community_member_lists.append(community_members)
 
             # Community distance
-            dist_real = real_real.loc[community_members, int(community_center)].to_list()
+            dist_real = real_real.loc[community_members, community_center].to_list()
             community_distance = max(dist_real)
             community_distances.append(community_distance)
 
@@ -216,7 +225,7 @@ def outcome_prediction_asc(filepath, threshold=0.5):
                 predic_function_b.append([community_id, real_node, method, 'synth', count_b, std_b, dead_b, ratio_b, pred_label_mean_b, pred_label_mode_b, pred_label_knn_b, true_label])
 
                 #b top n (the closest digital twins )
-                real_node_le = real_le[real_le['IID']==int(real_node)].drop(columns=['IID'])  
+                real_node_le = real_le[real_le['IID']==real_node].drop(columns=['IID'])  
                 synth_community_members_le = synthetic_data[synthetic_data['IID'].isin(synth_community_members)].drop(columns={'IID', 'outcome'})
                 random.seed(random_state)
                 synth_to_real_node = pd.DataFrame(cdist_gower(real_node_le, synth_community_members_le, cat_features = cat_features, num_max=num_max, num_ranges=num_ranges), columns=synth_community_members)
@@ -263,7 +272,7 @@ def outcome_prediction_asc(filepath, threshold=0.5):
     #community_performances_df = pd.DataFrame(performances, columns=cols)
     #community_performances_df.to_csv(output_path+method+'_community_performances.csv', index=False)
 
-    cols =['CommunityId', 'Real_Node', 'Method', 'Dataset', 'count', 'std', 'dead', 'ratio','mean', 'mode', 'knn', 'Real_VitalStatus']
+    cols =['CommunityId', 'Real_Node', 'Method', 'Dataset', 'count', 'std', 'dead', 'ratio', 'mean', 'mode', 'knn', 'Real_VitalStatus']
     predic_function_a_df= pd.DataFrame(predic_function_a, columns=cols)
     predic_function_b_df= pd.DataFrame(predic_function_b, columns=cols)
     predic_function_bn_df= pd.DataFrame(predic_function_bn, columns=cols)

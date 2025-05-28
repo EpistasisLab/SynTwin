@@ -13,7 +13,7 @@ import glob
 
 def asc_community_creation(filepath):
     print("Running step4 asc_community")
-    real_data = pd.read_csv(os.path.join(filepath,'data/synthetic.csv'))
+    real_data = pd.read_csv(os.path.join(filepath,'GS_gwas/gene_scores_test_gwas.csv'))
 
     output_folder = os.path.join(filepath,'results/spectral_clustering')
     os.makedirs(output_folder, exist_ok=True)
@@ -105,7 +105,7 @@ def asc_community_creation(filepath):
     community_sizes = []
 
     for community_ids in comm_10members:
-        sub_df = real_data[real_data['IID'].isin(community_ids)]
+        sub_df = real_data[real_data['IID'].isin(community_ids)]   # match IID
         outcome_counts = sub_df['outcome'].value_counts(normalize=True)
         label_1_rate = outcome_counts.get(1, 0)
         label_1_rates.append(label_1_rate)
