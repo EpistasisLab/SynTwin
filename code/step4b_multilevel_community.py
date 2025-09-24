@@ -11,7 +11,7 @@ import glob
 def multilevel_community_creation(filepath):
     print("Running step4 multilevel_community")
 
-    real_data = pd.read_csv(os.path.join(filepath,'GS_gwas/gene_scores_test_gwas.csv'))
+    real_data = pd.read_csv(os.path.join(filepath,'gene_scores_test_nonad.csv'))
 
     output_folder = os.path.join(filepath,'results/multilevel_clustering')
     os.makedirs(output_folder, exist_ok=True)

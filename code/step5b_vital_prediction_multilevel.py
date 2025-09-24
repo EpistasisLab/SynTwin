@@ -19,6 +19,7 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     print("Running step5 outcome prediction with multilevel community")
     print(datetime.now())
 
+    filepath = filepath +'/'
     data_path = filepath + 'data/'
     output_path = filepath + 'results/vital_prediction_multilevel/' 
     distance_folder ='results/'
@@ -34,7 +35,7 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     id_col = 'IID'
     predict_col = 'outcome'
 
-    real_le = pd.read_csv(filepath+'GS_gwas/gene_scores_test_gwas.csv')  
+    real_le = pd.read_csv(filepath+'gene_scores_test_nonad.csv')  
     real_data = real_le.copy()
     real_le = real_le.drop(columns= predict_col) 
 
@@ -49,12 +50,13 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
     predict_functions = ['mean','mode', 'knn'] 
     metric_list = ['Accuracy', 'BalancedAccuracy', 'AUROC', 'Precision', 'Recall', 'F1']
 
-    num_cols = real_le.shape[1]
+    real_feature = real_le.drop(columns= id_col) 
+    num_cols = real_feature.shape[1]
     cat_features = [False] * num_cols
     num_max = np.ones(num_cols)
     num_ranges = np.zeros(num_cols)
-    for idx, col_name in enumerate(real_le.columns):
-        col_array = real_le[col_name].astype(np.float32).values
+    for idx, col_name in enumerate(real_feature.columns):
+        col_array = real_feature[col_name].astype(np.float32).values
         max_val = np.nanmax(col_array)
         min_val = np.nanmin(col_array)
 
@@ -64,7 +66,8 @@ def outcome_prediction_multilevel(filepath, threshold=0.5, resolution=100, rando
             min_val = 0.0
 
         num_max[idx] = max_val
-        num_ranges[idx] = np.abs(1 - min_val / max_val) if max_val != 0 else 0.0        
+        num_ranges[idx] = np.abs(1 - min_val / max_val) if max_val != 0 else 0.0  
+    del real_feature  
 
     random.seed(random_state)
     network = pd.read_csv(filepath+ percolation_folder+'cytoscape_'+method+'_'+str(threshold)+'.csv') 

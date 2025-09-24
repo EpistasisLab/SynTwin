@@ -19,8 +19,8 @@ def step1_synthetic_algorithm(filepath):
     os.makedirs(os.path.join(filepath, 'data'), exist_ok=True)
     os.makedirs(os.path.join(filepath, 'results/SDV'), exist_ok=True)
         
-    df_train = pd.read_csv(os.path.join(filepath, 'GS_gwas/gene_scores_train_gwas.csv')) 
-    df_val = pd.read_csv(os.path.join(filepath, 'GS_gwas/gene_scores_val_gwas.csv')) 
+    df_train = pd.read_csv(os.path.join(filepath, 'gene_scores_train_nonad.csv')) 
+    df_val = pd.read_csv(os.path.join(filepath, 'gene_scores_val_nonad.csv')) 
     df = pd.concat([df_train,df_val]).reset_index(drop=True)
     df.to_csv(os.path.join(filepath,'data/synthetic.csv'), index=False)
 
